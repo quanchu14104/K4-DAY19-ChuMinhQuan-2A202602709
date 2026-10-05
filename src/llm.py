@@ -115,6 +115,8 @@ class MeteredLLM:
                               else _openai_client(self.embed_provider))
 
     def chat(self, prompt: str, json_mode: bool = False) -> str:
+        if self.chat_provider == "gemini":
+            time.sleep(4.5)
         start = time.perf_counter()
         if self.chat_provider == "anthropic":
             text, model, tokens_in, tokens_out = self._chat_anthropic(prompt)
@@ -157,6 +159,8 @@ class MeteredLLM:
         return text, response.model, response.usage.input_tokens, response.usage.output_tokens
 
     def embed(self, text: str) -> list[float]:
+        if self.embed_provider == "gemini":
+            time.sleep(0.7)
         start = time.perf_counter()
         response = self._embed_client.embeddings.create(model=self.embed_model_id, input=text)
         tokens = getattr(response.usage, "prompt_tokens", 0) or 0   # some OpenAI-compatible APIs omit usage

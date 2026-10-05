@@ -1,68 +1,91 @@
-# Thiết kế Ontology — Day 19
+# Thiết kế Ontology
 
-**Họ tên:** …  **MSSV:** …
+> ⚠️ Đọc `LAB_GUIDE.md` Bước 2 trước khi điền. Ghi tên sinh viên vào phần tác giả.
+> File này bắt buộc phải nộp, kể cả khi dùng ontology gợi ý.
 
-**Lựa chọn** (đánh dấu một):
-- [ ] Dùng ontology gợi ý (có thể chỉnh nhỏ)
-- [ ] Tự thiết kế (xét bonus +15, xem `SUBMISSION.md`)
+- **Tác giả:** Chu Minh Quân
+- **Mã sinh viên:** 2A202602709
 
-> Hướng dẫn: `LAB_GUIDE.md` Bước 2. Dùng ontology gợi ý thì vẫn phải điền đủ các mục dưới đây bằng lời của bạn.
-
-## 1. Sơ đồ
-
-Vẽ bằng mermaid (hoặc chèn ảnh `report/img/ontology.png`). Đánh dấu rõ **node cầu nối**.
+## 1. Sơ đồ Ontology
 
 ```mermaid
 flowchart LR
-    A[...] -- ... --> B[...]
+    P[Person] -- "INVOLVED_IN<br/>role, sentence, charge" --> K[Case]
+    K -- CHARGED_WITH --> C((Crime))
+    K -- "INVOLVES<br/>amount" --> S[Substance]
+    K -- LOCATED_IN --> L[Location]
+    A[Article] -- DEFINES --> C
+    A -- HAS_CLAUSE --> CL["Clause<br/>number, penalty, text"]
+    CL -- MENTIONS --> S
+    style C fill:#f9d71c,color:#000
 ```
 
-## 2. Entity types (node labels)
+## 2. Chi tiết Entity (Node)
 
-| Label | Ý nghĩa | Khóa định danh (`MERGE` theo) | Properties | Lấy từ KB nào | Trích bằng (regex / LLM / khác) |
-| --- | --- | --- | --- | --- | --- |
-| | | | | | |
+*Ví dụ: Person, Case, Article... Khóa là thuộc tính dùng để định danh duy nhất (trong MERGE).*
 
-## 3. Relationships
-
-| Type | Từ → Đến | Properties trên cạnh | Ý nghĩa |
+| Label | Thuộc tính quan trọng | Khóa (`CONSTRAINT ... UNIQUE`) | Lấy từ KB nào? |
 | --- | --- | --- | --- |
-| | | | |
+| `Article` | `title`, `law`, `doc_id` | `id` ("Điều 251 BLHS") | Luật |
+| `Clause` | `number`, `penalty`, `text`, `doc_id` | `id` ("Điều 251 BLHS khoản 1") | Luật |
+| `Crime` | `name` | `name` (tên chuẩn hóa) | Cả hai |
+| `Case` | `summary`, `date`, `doc_id` | `name` | Tin tức |
+| `Substance` | `name` | `name` | Cả hai |
+| `Person` | `aliases` | `name` | Tin tức |
+| `Location` | `name` | `name` | Tin tức |
 
-## 4. Node cầu nối giữa 2 KB
+## 3. Chi tiết Relationship (Cạnh)
 
-- **Node nào:** …
-- **Vì sao chọn node này:** …
-- **Cách đảm bảo hai phía khớp tên** (chuẩn hóa, `link_entity`, danh sách chuẩn trong prompt…): …
-- **Khi nào cầu gãy, và bạn xử lý thế nào:** …
+| Cạnh | Hướng | Thuộc tính trên cạnh | Ý nghĩa |
+| --- | --- | --- | --- |
+| `DEFINES` | `Article` → `Crime` | (Không có) | Luật định nghĩa tội danh |
+| `HAS_CLAUSE`| `Article` → `Clause` | (Không có) | Điều luật gồm các khoản |
+| `MENTIONS` | `Clause` → `Substance`| (Không có) | Khoản luật đề cập tới chất ma túy |
+| `CHARGED_WITH`| `Case` → `Crime` | (Không có) | Vụ án khởi tố tội danh |
+| `INVOLVES` | `Case` → `Substance`| `amount` | Vụ án liên quan tới lượng chất |
+| `LOCATED_IN`| `Case` → `Location` | (Không có) | Vụ án xảy ra ở đâu |
+| `INVOLVED_IN`| `Person` → `Case` | `role`, `sentence`, `charge` | Người tham gia vào vụ án (và mức phạt) |
 
-## 5. Competency questions
+## 4. Node cầu nối (Bridge Node)
 
-Với mỗi câu trong `data/benchmark_kg.json`, ghi đường đi trên graph dùng để trả lời. Câu nào không trả lời được thì ghi rõ lý do.
+- **Đâu là (những) node nối hai cơ sở tri thức?**
+  Node `Crime` (Tội danh) và `Substance` (Chất ma túy).
+- **Cầu nối có thể bị "gãy" (vụ án không nối được sang luật) trong trường hợp nào?**
+  Khi LLM trích xuất tên tội danh không khớp với các tên tội danh đã có trong luật (không qua được bước `link_entity`).
+- **(Tùy chọn) Ontology của bạn xử lý sự cố gãy cầu như thế nào?**
+  Sử dụng cơ chế fuzzy matching (`difflib.get_close_matches`) ở bước `link_entity` để vẫn khớp được dù sai khác nhỏ (VD: lỗi chính tả, sai dấu ngoặc kép...).
 
-| Câu | Đường đi (Cypher pattern) | Trả lời được? |
-| --- | --- | --- |
-| Q1 | | |
-| Q2 | | |
-| Q3 | | |
-| Q4 | | |
-| Q5 | | |
-| Q6 | | |
+## 5. Competency Questions
 
-## 6. Quyết định thiết kế và đánh đổi
+*Với mỗi câu Q1–Q6 trong `benchmark_kg.json`, viết đường đi (path) trên graph để trả lời.*
 
-Ít nhất 3 quyết định. Mỗi quyết định ghi: đã chọn gì, phương án khác là gì, vì sao chọn.
+- **Q1 (Chỉ cần luật):**
+  - **Đường đi:** `(Article {id: 'Điều 249 BLHS'})-[:HAS_CLAUSE]->(Clause)`
+- **Q2 (Chỉ cần tin tức, 1 vụ):**
+  - **Đường đi:** `(Person {name: 'Lê Minh Thành'})-[:INVOLVED_IN]->(Case)-[:INVOLVES]->(Substance)` và `(Case)-[:CHARGED_WITH]->(Crime)`
+- **Q3 (Xuyên 2 KB, 1 vụ):**
+  - **Đường đi:** `(Person {name: 'Lê Minh Thành'})-[:INVOLVED_IN]->(Case)-[:CHARGED_WITH]->(Crime)<-[:DEFINES]-(Article)-[:HAS_CLAUSE]->(Clause)`
+- **Q4 (Xuyên 2 KB, mức án):**
+  - **Đường đi:** `(Person {name: 'Trần Văn Bằng'})-[:INVOLVED_IN]->(Case)-[:CHARGED_WITH]->(Crime)<-[:DEFINES]-(Article)-[:HAS_CLAUSE]->(Clause)-[:MENTIONS]->(Substance)` nơi `Case` cũng `INVOLVES` `Substance` đó.
+- **Q5 (Xuyên 2 KB, nhiều vụ, cùng tội):**
+  - **Đường đi:** `(Person)-[:INVOLVED_IN]->(Case)-[:CHARGED_WITH]->(Crime)<-[:DEFINES]-(Article)-[:HAS_CLAUSE]->(Clause)` (Lọc các `Case` có `Crime` là tội tàng trữ hoặc sử dụng)
+- **Q6 (Câu nào không trả lời được?):**
+  - **Câu không trả lời được bằng graph:** Có thể trả lời được thông qua kết hợp với Flat RAG nếu Graph RAG thiếu thông tin. Hiện tại thiết kế trả lời được các câu từ Q1-Q6 do cung cấp đủ node và thuộc tính (khối lượng, mức phạt...).
 
-1. …
-2. …
-3. …
+## 6. Đánh đổi thiết kế
 
-## 7. So với ontology gợi ý (bắt buộc nếu xét bonus)
+1. **Quyết định 1:** Dùng `Crime` làm node cầu nối thay vì `Person`.
+   - **Phương án thay thế:** Nếu làm hệ thống công an, `Person` mới là trung tâm.
+   - **Đánh đổi:** Ở bài toán này, luật không có `Person`, nên `Crime` là hợp lý hơn.
 
-| Điểm khác | Gợi ý làm gì | Bạn làm gì | Vấn đề nó giải quyết | Bằng chứng (Cypher, hoặc số liệu benchmark) |
-| --- | --- | --- | --- | --- |
-| | | | | |
+2. **Quyết định 2:** Để mức án (`sentence`) thành property của quan hệ `INVOLVED_IN` thay vì làm node riêng `Sentence`.
+   - **Phương án thay thế:** `(Person)-[:RECEIVED]->(Sentence)`.
+   - **Đánh đổi:** Tiết kiệm node và query đơn giản hơn vì mỗi người trong một vụ có một mức án, gán vào cạnh là đúng ngữ nghĩa.
 
-## 8. Hạn chế còn lại
+3. **Quyết định 3:** Tách `Clause` (Khoản) thành node riêng thay vì thuộc tính của `Article`.
+   - **Phương án thay thế:** Gộp tất cả các khoản thành list thuộc tính text của `Article`.
+   - **Đánh đổi:** Tách node giúp GraphRAG truy xuất chính xác khoản luật nào liên quan đến ma túy nào thông qua cạnh `MENTIONS`, giảm context length.
 
-…
+## 7. Bonus: Khác biệt so với ontology gợi ý
+
+*Bỏ qua phần này nếu bạn dùng ontology gợi ý (HINT).*
